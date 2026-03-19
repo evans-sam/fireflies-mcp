@@ -1,102 +1,77 @@
-# Fireflies MCP Server
+# Fireflies MCP Server & CLI
 
-MCP Server for the [Fireflies.ai](https://fireflies.ai) API, enabling transcript retrieval, search, and summary generation.
+MCP server and CLI for the [Fireflies.ai](https://fireflies.ai) API. Retrieve transcripts, search meetings, and generate summaries.
 
-> **Attribution:** This project is forked from [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp). Thank you to [Props Labs](https://props.app) for building the original MCP server. This fork migrates to Bun, adds HTTP transport for Docker deployment, and removes external dependencies.
+> Forked from [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp).
 
-### Features
+## Quick Start
 
-- **Transcript Management**: Retrieve and search meeting transcripts with filtering options
-- **Detailed Information**: Get comprehensive details about specific transcripts
-- **Advanced Search**: Find transcripts containing specific keywords or phrases
-- **Summary Generation**: Generate concise summaries of meeting transcripts in different formats
+```bash
+# Install globally
+npm install -g fireflies-mcp
+# or
+bun install -g fireflies-mcp
 
-## Tools
+# Set your API key
+export FIREFLIES_API_KEY=your_key
 
-1. `fireflies_get_transcripts`
-   - Retrieve a list of meeting transcripts with optional filtering
-   - Inputs:
-     - `limit` (optional number): Maximum number of transcripts to return
-     - `from_date` (optional string): Start date in ISO format (YYYY-MM-DD)
-     - `to_date` (optional string): End date in ISO format (YYYY-MM-DD)
-   - Returns: Array of transcript objects with basic information
+# Use the CLI
+fireflies-mcp transcripts --limit 5
+fireflies-mcp search "standup" --json
+fireflies-mcp details <transcript-id>
+fireflies-mcp summary <transcript-id>
+```
 
-2. `fireflies_get_transcript_details`
-   - Get detailed information about a specific transcript
-   - Inputs:
-     - `transcript_id` (string): ID of the transcript to retrieve
-   - Returns: Comprehensive transcript details including speakers, content, and metadata
+## Commands
 
-3. `fireflies_search_transcripts`
-   - Search for transcripts containing specific keywords
-   - Inputs:
-     - `query` (string): Search query to find relevant transcripts
-     - `limit` (optional number): Maximum number of transcripts to return
-   - Returns: Array of matching transcript objects
+```
+fireflies-mcp                              Start MCP server (stdio, default)
+fireflies-mcp serve                        Start MCP server (stdio, explicit)
+fireflies-mcp serve --http [--port 3000]   Start MCP HTTP server
+fireflies-mcp transcripts [options]        List recent transcripts
+fireflies-mcp details <id> [options]       Get transcript details
+fireflies-mcp search <query> [options]     Search transcripts by title
+fireflies-mcp summary <id> [options]       Generate transcript summary
+fireflies-mcp --help                       Show help
+fireflies-mcp --version                    Show version
+```
 
-4. `fireflies_generate_summary`
-   - Generate a summary of a meeting transcript
-   - Inputs:
-     - `transcript_id` (string): ID of the transcript to summarize
-     - `format` (optional string): Format of the summary ('bullet_points' or 'paragraph')
-   - Returns: Generated summary text
+### CLI Options
 
-## Setup
+| Option | Applies to | Description |
+|---|---|---|
+| `--json` | all CLI commands | Output raw JSON instead of formatted text |
+| `--limit <n>` | transcripts, search | Maximum results (default: 20) |
+| `--from <date>` | transcripts, search | Start date filter (YYYY-MM-DD) |
+| `--to <date>` | transcripts, search | End date filter (YYYY-MM-DD) |
+| `--format <fmt>` | summary | `bullet_points` (default) or `paragraph` |
 
-### Fireflies API Key
+## MCP Tools
 
-[Create a Fireflies API Key](https://fireflies.ai/dashboard/settings/api):
-   - Go to the Fireflies.ai dashboard
-   - Navigate to Settings > API
-   - Generate a new API key
-   - Copy the generated key
+When running as an MCP server, exposes these tools:
+
+1. **`fireflies_get_transcripts`** — List transcripts with optional date/limit filters
+2. **`fireflies_get_transcript_details`** — Full transcript with speakers, text, and summary
+3. **`fireflies_search_transcripts`** — Search by title keyword
+4. **`fireflies_generate_summary`** — Summary in bullet points or paragraph format
 
 ## Installation
 
-All installation methods require [Bun](https://bun.sh).
-
-### Option 1: Install globally from GitHub
+### Option 1: npx (no install)
 
 ```bash
+npx fireflies-mcp transcripts --limit 5
+```
+
+### Option 2: Global install
+
+```bash
+npm install -g fireflies-mcp
+# or
 bun install -g github:evans-sam/fireflies-mcp
 ```
 
-This installs the `fireflies-mcp` binary. Then configure your MCP client:
-
-```json
-{
-  "mcpServers": {
-    "fireflies": {
-      "command": "fireflies-mcp",
-      "env": {
-        "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
-      }
-    }
-  }
-}
-```
-
-> **Note:** The binary is installed to `~/.bun/bin/`. Make sure this is on your `PATH` (add `export PATH="$HOME/.bun/bin:$PATH"` to your shell profile if needed).
-
-### Option 2: Run directly with bunx
-
-No install needed — `bunx` downloads and runs on the fly:
-
-```json
-{
-  "mcpServers": {
-    "fireflies": {
-      "command": "bunx",
-      "args": ["github:evans-sam/fireflies-mcp"],
-      "env": {
-        "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
-      }
-    }
-  }
-}
-```
-
-### Option 3: Clone and run locally
+### Option 3: From source
 
 ```bash
 git clone https://github.com/evans-sam/fireflies-mcp.git
@@ -104,49 +79,37 @@ cd fireflies-mcp
 bun install
 ```
 
-Then point your MCP client to the source directly:
+## MCP Server Configuration
 
+### Claude Code (`~/.claude.json`)
+
+**Via npx (Node.js):**
 ```json
 {
   "mcpServers": {
     "fireflies": {
-      "command": "bun",
-      "args": ["run", "/absolute/path/to/fireflies-mcp/src/index.ts"],
-      "env": {
-        "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
-      }
+      "command": "npx",
+      "args": ["fireflies-mcp"],
+      "env": { "FIREFLIES_API_KEY": "<YOUR_API_KEY>" }
     }
   }
 }
 ```
 
-### Option 4: Docker (HTTP transport)
-
-Run as a persistent HTTP server in Docker:
-
-```bash
-# Using docker-compose (recommended)
-FIREFLIES_API_KEY=your_api_key docker compose up -d
-
-# Or directly
-docker build -t fireflies-mcp .
-docker run -d \
-  --name fireflies-mcp \
-  -p 127.0.0.1:3000:3000 \
-  -e FIREFLIES_API_KEY=your_api_key \
-  --restart unless-stopped \
-  fireflies-mcp
+**Via Bun (from source):**
+```json
+{
+  "mcpServers": {
+    "fireflies": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/fireflies-mcp/src/main.ts"],
+      "env": { "FIREFLIES_API_KEY": "<YOUR_API_KEY>" }
+    }
+  }
+}
 ```
 
-Verify it's running:
-
-```bash
-curl http://localhost:3000/health
-# → {"status":"ok"}
-```
-
-Then configure your MCP client to connect over HTTP:
-
+**Via Docker (HTTP):**
 ```json
 {
   "mcpServers": {
@@ -158,64 +121,61 @@ Then configure your MCP client to connect over HTTP:
 }
 ```
 
+### Claude Desktop
+
+Same JSON structure — add to `claude_desktop_config.json`.
+
+## Docker
+
 ```bash
-# Managing the container
-docker compose logs -f fireflies-mcp   # View logs
-docker compose down                     # Stop
-docker compose up -d --build            # Rebuild after changes
+# docker-compose (recommended)
+FIREFLIES_API_KEY=your_key docker compose up -d
+
+# or directly
+docker build -t fireflies-mcp .
+docker run -d -p 127.0.0.1:3000:3000 -e FIREFLIES_API_KEY=your_key --restart unless-stopped fireflies-mcp
+
+# verify
+curl http://localhost:3000/health
 ```
 
-### Future: npm publish
+## Setup
 
-To make this installable via `npx` for Node.js users (without requiring Bun), the package would need a build step to transpile TypeScript to JavaScript before publishing. The steps would be:
+### Fireflies API Key
 
-1. Add a build script: `bun build src/index.ts --outdir dist --target node`
-2. Change `bin` in package.json to point to `dist/index.js`
-3. Update `files` to include `dist` instead of `src`
-4. Publish to npm: `npm publish`
-5. Users install with: `npx fireflies-mcp`
-
-This is not yet implemented since all current consumers use Bun.
-
-## MCP Client Configuration
-
-The examples above show the JSON snippets to add. Here's where each client stores its config:
-
-| Client | Config file |
-|---|---|
-| Claude Code | `~/.claude.json` → top-level `mcpServers` |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
-
-> **Important:** The `command`, `args`, and `env` keys go directly under the server name. Do **not** nest an extra `mcpServers` object inside.
+Get your key at [fireflies.ai/dashboard/settings/api](https://fireflies.ai/dashboard/settings/api).
 
 ## Development
 
 ```bash
-# Start the server (stdio mode)
-FIREFLIES_API_KEY=your_api_key bun run start
-
-# Start in HTTP mode
-FIREFLIES_API_KEY=your_api_key TRANSPORT=http bun run start
-
-# Run tests
-bun test
-
-# Lint and format
-bun run lint
-bun run format
-
-# Type check
-bun run typecheck
+bun install          # Install deps
+bun run start        # Start MCP server (stdio)
+bun test             # Run tests
+bun run lint         # Lint
+bun run format       # Format (auto-fix)
+bun run build        # Build for Node.js
 ```
+
+### Publishing
+
+Publishing is automated via GitHub Actions. To release:
+
+```bash
+# Bump version in package.json, then:
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+This triggers CI → test → build → npm publish → GitHub release.
+
+Requires `NPM_TOKEN` secret in the repository settings.
 
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `FIREFLIES_API_KEY` | Yes | — | Your Fireflies.ai API key |
-| `TRANSPORT` | No | `stdio` | Transport mode: `stdio` or `http` |
-| `PORT` | No | `3000` | HTTP server port (only used when `TRANSPORT=http`) |
 
 ## License
 
-This MCP server is licensed under the MIT License. See the original [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp) repository.
+MIT. See [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp) for the original.

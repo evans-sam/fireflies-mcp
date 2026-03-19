@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { FirefliesApiClient, startHttpServer } from "./index.ts";
+import { FirefliesApiClient } from "./client.ts";
+import { startHttpServer } from "./server.ts";
 
 const originalStderrWrite = process.stderr.write;
 const originalFetch = globalThis.fetch;

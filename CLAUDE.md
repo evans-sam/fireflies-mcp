@@ -4,47 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-MCP (Model Context Protocol) server for the Fireflies.ai API. Exposes four tools for transcript retrieval, search, and summary generation. Supports both stdio and HTTP (StreamableHTTP) transport modes. Runs on Bun.
+MCP server and CLI for the Fireflies.ai API. Single dispatcher entry point (`src/main.ts`) routes between MCP server mode and CLI commands. Supports both Bun and Node.js 18+. Published to npm as `fireflies-mcp`.
 
 ## Commands
 
 ```bash
 bun install              # Install dependencies
-bun run start            # Start server (stdio mode, requires FIREFLIES_API_KEY)
-bun test                 # Run tests
+bun run start            # Start MCP server (stdio mode, requires FIREFLIES_API_KEY)
+bun test                 # Run tests (Bun's built-in test runner)
 bun run lint             # Lint with Biome
 bun run format           # Format with Biome (auto-fix)
-bun run typecheck        # TypeScript type checking (no emit)
+bun run build            # Build dist/main.js for Node.js (bun build --target node)
 ```
-
-To start in HTTP mode: `TRANSPORT=http PORT=3000 FIREFLIES_API_KEY=... bun run start`
 
 ## Architecture
 
-Single-file server in `src/index.ts` with two main classes:
+Three source modules in `src/`:
 
-- **`FirefliesApiClient`** — wraps the Fireflies GraphQL API (`https://api.fireflies.ai/graphql`). Uses `fetch` with `AbortSignal.timeout(60s)`. Has a timeout-retry fallback that re-requests with minimal fields.
-- **`FirefliesServer`** — creates an MCP `Server` instance, registers `ListTools` and `CallTool` handlers. Routes tool calls through `handleToolCall` which dispatches to the API client.
+- **`client.ts`** — `FirefliesApiClient` wrapping the Fireflies GraphQL API. Uses `fetch` with `AbortSignal.timeout(60s)`. Shared by both MCP server and CLI.
+- **`server.ts`** — `FirefliesServer` (MCP protocol handler), `startHttpServer()` (HTTP transport), and tool definitions. HTTP server detects runtime: `Bun.serve()` on Bun, `node:http` on Node.
+- **`main.ts`** — Launcher/dispatcher. Parses `process.argv` to route between `serve` (MCP server) and CLI subcommands (`transcripts`, `details`, `search`, `summary`).
+- **`cli.ts`** — CLI command handlers. Each command uses `FirefliesApiClient` directly, with `--json` flag for machine-readable output.
 
-Exported `startHttpServer()` function creates a `Bun.serve()` HTTP server with `WebStandardStreamableHTTPServerTransport` for containerized/persistent deployment.
+### Subcommand structure
 
-The four MCP tools map directly to API client methods:
-| Tool | Client method |
-|---|---|
-| `fireflies_get_transcripts` | `getTranscripts()` |
-| `fireflies_get_transcript_details` | `getTranscriptDetails()` |
-| `fireflies_search_transcripts` | `searchTranscripts()` |
-| `fireflies_generate_summary` | `generateTranscriptSummary()` |
+```
+fireflies-mcp                              → MCP stdio server (default)
+fireflies-mcp serve [--http] [--port N]    → MCP server (explicit)
+fireflies-mcp transcripts [options]         → CLI
+fireflies-mcp details <id> [options]        → CLI
+fireflies-mcp search <query> [options]      → CLI
+fireflies-mcp summary <id> [options]        → CLI
+```
 
 ## Key Details
 
-- **Bun runtime** — no build step needed; TypeScript runs directly.
+- **Dual runtime** — Bun runs TypeScript directly; Node.js uses the compiled `dist/main.js`.
 - **ESM project** — `"type": "module"` in package.json.
-- **All logging goes to stderr** (`process.stderr.write`) to avoid breaking the MCP stdio protocol. Never use `console.log`.
-- `FIREFLIES_API_KEY` env var is required at startup; the server exits without it.
-- `TRANSPORT` env var selects mode: `stdio` (default) or `http`.
-- `PORT` env var sets the HTTP port (default `3000`, only used in `http` mode).
+- **All MCP logging goes to stderr** (`process.stderr.write`) to avoid breaking stdio protocol.
+- `FIREFLIES_API_KEY` env var is required for all commands.
 - **Biome** handles linting, formatting, and import sorting. Config in `biome.json`.
-- `import.meta.main` guard prevents the server from starting when the module is imported (e.g., in tests).
-- Search uses the Fireflies `title` parameter on the `transcripts` GraphQL query (not a dedicated search endpoint).
-- Docker image uses `oven/bun:1` base, exposes HTTP transport on port 3000.
+- `import.meta.main` (Bun) / `import.meta.url` (Node) guard prevents server startup on import.
+- Search uses the Fireflies `title` parameter on the `transcripts` GraphQL query.
+- Docker image uses `oven/bun:1` base, runs `serve --http` on port 3000.
+- **npm publishing**: `bun run build` compiles to `dist/main.js` targeting Node. `npm publish` on `v*` tags via GitHub Actions.

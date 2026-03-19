@@ -1,19 +1,19 @@
 {
-  "name": "mcp-server-fireflies",
-  "description": "MCP server for interacting with Fireflies.ai API",
-  "version": "1.0.0",
-  "author": "Props Labs",
-  "repoUrl": "https://github.com/props-labs/mcp-servers",
-  "credentialRequirements": [
-    {
-      "name": "FIREFLIES_API_KEY",
-      "description": "Your Fireflies.ai API key",
-      "envVar": "FIREFLIES_API_KEY",
-      "required": true
-    }
-  ],
-  "binEntry": {
-    "name": "mcp-server-fireflies",
-    "path": "src/index.ts"
-  }
+	"name": "fireflies-mcp",
+	"description": "MCP server and CLI for the Fireflies.ai API",
+	"version": "0.1.0",
+	"author": "evans-sam",
+	"repoUrl": "https://github.com/evans-sam/fireflies-mcp",
+	"credentialRequirements": [
+		{
+			"name": "FIREFLIES_API_KEY",
+			"description": "Your Fireflies.ai API key",
+			"envVar": "FIREFLIES_API_KEY",
+			"required": true
+		}
+	],
+	"binEntry": {
+		"name": "fireflies-mcp",
+		"path": "dist/main.js"
+	}
 }
