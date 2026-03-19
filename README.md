@@ -1,6 +1,8 @@
 # Fireflies MCP Server
 
-MCP Server for the Fireflies.ai API, enabling transcript retrieval, search, and summary generation.
+MCP Server for the [Fireflies.ai](https://fireflies.ai) API, enabling transcript retrieval, search, and summary generation.
+
+> **Attribution:** This project is forked from [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp). Thank you to [Props Labs](https://props.app) for building the original MCP server. This fork migrates to Bun, adds HTTP transport for Docker deployment, and removes external dependencies.
 
 ### Features
 
@@ -42,22 +44,30 @@ MCP Server for the Fireflies.ai API, enabling transcript retrieval, search, and 
 ## Setup
 
 ### Fireflies API Key
-[Create a Fireflies API Key](https://fireflies.ai/dashboard/settings/api) with appropriate permissions:
+
+[Create a Fireflies API Key](https://fireflies.ai/dashboard/settings/api):
    - Go to the Fireflies.ai dashboard
    - Navigate to Settings > API
    - Generate a new API key
    - Copy the generated key
 
-### Usage with Claude Desktop (stdio)
+## Installation
 
-Add the following to your `claude_desktop_config.json`:
+All installation methods require [Bun](https://bun.sh).
+
+### Option 1: Install globally from GitHub
+
+```bash
+bun install -g github:evans-sam/fireflies-mcp
+```
+
+This installs the `fireflies-mcp` binary. Then configure your MCP client:
 
 ```json
 {
   "mcpServers": {
     "fireflies": {
-      "command": "bun",
-      "args": ["run", "/path/to/fireflies-mcp/src/index.ts"],
+      "command": "fireflies-mcp",
       "env": {
         "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
       }
@@ -66,30 +76,117 @@ Add the following to your `claude_desktop_config.json`:
 }
 ```
 
-### Usage with Docker (HTTP)
+> **Note:** The binary is installed to `~/.bun/bin/`. Make sure this is on your `PATH` (add `export PATH="$HOME/.bun/bin:$PATH"` to your shell profile if needed).
 
-For a persistent server accessible over HTTP:
+### Option 2: Run directly with bunx
+
+No install needed — `bunx` downloads and runs on the fly:
+
+```json
+{
+  "mcpServers": {
+    "fireflies": {
+      "command": "bunx",
+      "args": ["github:evans-sam/fireflies-mcp"],
+      "env": {
+        "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
+      }
+    }
+  }
+}
+```
+
+### Option 3: Clone and run locally
 
 ```bash
-# With docker-compose (recommended)
+git clone https://github.com/evans-sam/fireflies-mcp.git
+cd fireflies-mcp
+bun install
+```
+
+Then point your MCP client to the source directly:
+
+```json
+{
+  "mcpServers": {
+    "fireflies": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/fireflies-mcp/src/index.ts"],
+      "env": {
+        "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
+      }
+    }
+  }
+}
+```
+
+### Option 4: Docker (HTTP transport)
+
+Run as a persistent HTTP server in Docker:
+
+```bash
+# Using docker-compose (recommended)
 FIREFLIES_API_KEY=your_api_key docker compose up -d
 
 # Or directly
 docker build -t fireflies-mcp .
-docker run -d -p 127.0.0.1:3000:3000 -e FIREFLIES_API_KEY=your_api_key fireflies-mcp
+docker run -d \
+  --name fireflies-mcp \
+  -p 127.0.0.1:3000:3000 \
+  -e FIREFLIES_API_KEY=your_api_key \
+  --restart unless-stopped \
+  fireflies-mcp
 ```
 
-Then configure your MCP client to connect to `http://localhost:3000/mcp` using the StreamableHTTP transport.
-
-## Installation
-
-1. Clone this repository
-2. Install [Bun](https://bun.sh) if not already installed
-3. Install dependencies:
+Verify it's running:
 
 ```bash
-bun install
+curl http://localhost:3000/health
+# → {"status":"ok"}
 ```
+
+Then configure your MCP client to connect over HTTP:
+
+```json
+{
+  "mcpServers": {
+    "fireflies": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+```bash
+# Managing the container
+docker compose logs -f fireflies-mcp   # View logs
+docker compose down                     # Stop
+docker compose up -d --build            # Rebuild after changes
+```
+
+### Future: npm publish
+
+To make this installable via `npx` for Node.js users (without requiring Bun), the package would need a build step to transpile TypeScript to JavaScript before publishing. The steps would be:
+
+1. Add a build script: `bun build src/index.ts --outdir dist --target node`
+2. Change `bin` in package.json to point to `dist/index.js`
+3. Update `files` to include `dist` instead of `src`
+4. Publish to npm: `npm publish`
+5. Users install with: `npx fireflies-mcp`
+
+This is not yet implemented since all current consumers use Bun.
+
+## MCP Client Configuration
+
+The examples above show the JSON snippets to add. Here's where each client stores its config:
+
+| Client | Config file |
+|---|---|
+| Claude Code | `~/.claude.json` → top-level `mcpServers` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
+
+> **Important:** The `command`, `args`, and `env` keys go directly under the server name. Do **not** nest an extra `mcpServers` object inside.
 
 ## Development
 
@@ -121,4 +218,4 @@ bun run typecheck
 
 ## License
 
-This MCP server is licensed under the MIT License.
+This MCP server is licensed under the MIT License. See the original [Props-Labs/fireflies-mcp](https://github.com/Props-Labs/fireflies-mcp) repository.

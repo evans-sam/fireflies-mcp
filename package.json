@@ -1,14 +1,14 @@
 {
-  "name": "@props-labs/mcp/fireflies",
+  "name": "fireflies-mcp",
   "version": "0.1.0",
   "description": "MCP server for using the Fireflies.ai API",
   "license": "MIT",
-  "author": "Props Labs",
-  "homepage": "https://props.app",
-  "bugs": "https://github.com/props-labs/mcp-servers/issues",
+  "author": "evans-sam",
+  "homepage": "https://github.com/evans-sam/fireflies-mcp",
+  "bugs": "https://github.com/evans-sam/fireflies-mcp/issues",
   "type": "module",
   "bin": {
-    "mcp-server-fireflies": "src/index.ts"
+    "fireflies-mcp": "src/index.ts"
   },
   "files": [
     "src"
