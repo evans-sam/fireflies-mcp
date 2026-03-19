@@ -9,7 +9,6 @@ MCP Server for the Fireflies.ai API, enabling transcript retrieval, search, and 
 - **Advanced Search**: Find transcripts containing specific keywords or phrases
 - **Summary Generation**: Generate concise summaries of meeting transcripts in different formats
 
-
 ## Tools
 
 1. `fireflies_get_transcripts`
@@ -49,18 +48,16 @@ MCP Server for the Fireflies.ai API, enabling transcript retrieval, search, and 
    - Generate a new API key
    - Copy the generated key
 
-### Usage with Claude Desktop
-To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
+### Usage with Claude Desktop (stdio)
+
+Add the following to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "fireflies": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@props-labs/mcp/fireflies"
-      ],
+      "command": "bun",
+      "args": ["run", "/path/to/fireflies-mcp/src/index.ts"],
       "env": {
         "FIREFLIES_API_KEY": "<YOUR_API_KEY>"
       }
@@ -69,42 +66,59 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
 }
 ```
 
+### Usage with Docker (HTTP)
+
+For a persistent server accessible over HTTP:
+
+```bash
+# With docker-compose (recommended)
+FIREFLIES_API_KEY=your_api_key docker compose up -d
+
+# Or directly
+docker build -t fireflies-mcp .
+docker run -d -p 127.0.0.1:3000:3000 -e FIREFLIES_API_KEY=your_api_key fireflies-mcp
+```
+
+Then configure your MCP client to connect to `http://localhost:3000/mcp` using the StreamableHTTP transport.
+
 ## Installation
 
 1. Clone this repository
-2. Install dependencies:
+2. Install [Bun](https://bun.sh) if not already installed
+3. Install dependencies:
 
 ```bash
-npm install
-# or
-pnpm install
+bun install
 ```
 
-3. Build the project:
+## Development
 
 ```bash
-npm run build
-# or
-pnpm build
+# Start the server (stdio mode)
+FIREFLIES_API_KEY=your_api_key bun run start
+
+# Start in HTTP mode
+FIREFLIES_API_KEY=your_api_key TRANSPORT=http bun run start
+
+# Run tests
+bun test
+
+# Lint and format
+bun run lint
+bun run format
+
+# Type check
+bun run typecheck
 ```
 
-## Usage
+## Environment Variables
 
-### Starting the Server
-
-```bash
-FIREFLIES_API_KEY=your_api_key npm start
-# or
-FIREFLIES_API_KEY=your_api_key pnpm start
-```
-
-You can also use the setup script:
-
-```bash
-./setup.sh
-FIREFLIES_API_KEY=your_api_key npm start
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `FIREFLIES_API_KEY` | Yes | — | Your Fireflies.ai API key |
+| `TRANSPORT` | No | `stdio` | Transport mode: `stdio` or `http` |
+| `PORT` | No | `3000` | HTTP server port (only used when `TRANSPORT=http`) |
 
 ## License
 
-This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software, subject to the terms and conditions of the MIT License. For more details, please see the LICENSE file in the project repository. 
+This MCP server is licensed under the MIT License.

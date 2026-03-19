@@ -45,4 +45,7 @@ tmp/
 temp/
 
 # TypeScript
-*.tsbuildinfo 
+*.tsbuildinfo
+
+# Bun
+.bun/
