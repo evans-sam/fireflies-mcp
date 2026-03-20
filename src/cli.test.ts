@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { runCli } from "./cli.ts";
+import { lastFetchCall, mockFetch } from "./test-utils.ts";
 
 const originalStderrWrite = process.stderr.write;
 const originalFetch = globalThis.fetch;
 
-function mockFetchResponse(data: any) {
-	globalThis.fetch = mock(() =>
+function mockFetchResponse(data: unknown) {
+	mockFetch(() =>
 		Promise.resolve(
 			new Response(JSON.stringify({ data }), {
 				status: 200,
@@ -22,10 +23,10 @@ describe("CLI", () => {
 	beforeEach(() => {
 		output = "";
 		process.stderr.write = () => true;
-		process.stdout.write = ((chunk: any) => {
+		process.stdout.write = ((chunk: string | Buffer) => {
 			output += typeof chunk === "string" ? chunk : chunk.toString();
 			return true;
-		}) as any;
+		}) as typeof process.stdout.write;
 	});
 
 	afterEach(() => {
@@ -80,8 +81,8 @@ describe("CLI", () => {
 				"test-key",
 			);
 
-			const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
-			const body = JSON.parse(call[1].body as string);
+			const [, init] = lastFetchCall();
+			const body = JSON.parse(init.body as string);
 			expect(body.variables.limit).toBe(5);
 			expect(body.variables.fromDate).toBe("2024-01-01");
 			expect(body.variables.toDate).toBe("2024-06-01");

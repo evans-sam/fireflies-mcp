@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { FirefliesApiClient } from "./client.ts";
 import { startHttpServer } from "./server.ts";
+import { lastFetchCall, mockFetch } from "./test-utils.ts";
 
 const originalStderrWrite = process.stderr.write;
 const originalFetch = globalThis.fetch;
@@ -22,7 +23,7 @@ describe("FirefliesApiClient", () => {
 				{ id: "2", title: "Meeting 2", date: "2024-01-02" },
 			];
 
-			globalThis.fetch = mock(() =>
+			mockFetch(() =>
 				Promise.resolve(
 					new Response(
 						JSON.stringify({
@@ -41,7 +42,7 @@ describe("FirefliesApiClient", () => {
 		});
 
 		test("sends correct authorization header", async () => {
-			globalThis.fetch = mock(() =>
+			mockFetch(() =>
 				Promise.resolve(
 					new Response(JSON.stringify({ data: { transcripts: [] } }), {
 						status: 200,
@@ -53,14 +54,13 @@ describe("FirefliesApiClient", () => {
 			const client = new FirefliesApiClient("my-secret-key");
 			await client.getTranscripts();
 
-			const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
-			const options = call[1] as RequestInit;
-			const headers = options.headers as Record<string, string>;
+			const [, init] = lastFetchCall();
+			const headers = init.headers as Record<string, string>;
 			expect(headers.Authorization).toBe("Bearer my-secret-key");
 		});
 
 		test("passes date filters as GraphQL variables", async () => {
-			globalThis.fetch = mock(() =>
+			mockFetch(() =>
 				Promise.resolve(
 					new Response(JSON.stringify({ data: { transcripts: [] } }), {
 						status: 200,
@@ -72,8 +72,8 @@ describe("FirefliesApiClient", () => {
 			const client = new FirefliesApiClient("test-key");
 			await client.getTranscripts(5, "2024-01-01", "2024-06-01");
 
-			const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
-			const body = JSON.parse(call[1].body as string);
+			const [, init] = lastFetchCall();
+			const body = JSON.parse(init.body as string);
 			expect(body.variables.fromDate).toBe("2024-01-01");
 			expect(body.variables.toDate).toBe("2024-06-01");
 			expect(body.variables.limit).toBe(5);
@@ -81,7 +81,7 @@ describe("FirefliesApiClient", () => {
 
 		test("retries with minimal fields on timeout", async () => {
 			let callCount = 0;
-			globalThis.fetch = mock(() => {
+			mockFetch(() => {
 				callCount++;
 				if (callCount === 1) {
 					const error = new DOMException(
@@ -114,7 +114,7 @@ describe("FirefliesApiClient", () => {
 
 	describe("error handling", () => {
 		test("throws on 401 unauthorized", async () => {
-			globalThis.fetch = mock(() =>
+			mockFetch(() =>
 				Promise.resolve(new Response("Unauthorized", { status: 401 })),
 			);
 
@@ -123,7 +123,7 @@ describe("FirefliesApiClient", () => {
 		});
 
 		test("throws on GraphQL errors", async () => {
-			globalThis.fetch = mock(() =>
+			mockFetch(() =>
 				Promise.resolve(
 					new Response(
 						JSON.stringify({
@@ -207,10 +207,7 @@ describe("MCP tool call responses", () => {
 	) {
 		// Intercept fetch to mock GraphQL while allowing local HTTP
 		const realFetch = globalThis.fetch;
-		globalThis.fetch = (async (
-			input: RequestInfo | URL,
-			init?: RequestInit,
-		) => {
+		mockFetch(async (input, init) => {
 			const url = typeof input === "string" ? input : input.toString();
 			if (url.includes("api.fireflies.ai")) {
 				return new Response(JSON.stringify(graphqlResponse), {
@@ -219,7 +216,7 @@ describe("MCP tool call responses", () => {
 				});
 			}
 			return realFetch(input, init);
-		}) as typeof fetch;
+		});
 
 		server = await startHttpServer("test-api-key", 0);
 		const base = `http://localhost:${server.port}/mcp`;

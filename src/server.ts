@@ -538,7 +538,7 @@ export async function startHttpServer(
 		);
 
 		return {
-			port: httpServer.port,
+			port: httpServer.port as number,
 			close: async () => {
 				httpServer.stop(true);
 			},
@@ -555,16 +555,17 @@ export async function startHttpServer(
 			if (typeof value === "string") headers[key] = value;
 		}
 
-		const body = await new Promise<Buffer>((resolve) => {
+		const bodyText = await new Promise<string>((resolve) => {
 			const chunks: Buffer[] = [];
 			req.on("data", (chunk) => chunks.push(chunk));
-			req.on("end", () => resolve(Buffer.concat(chunks)));
+			req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
 		});
 
 		const webRequest = new Request(url.toString(), {
 			method: req.method,
 			headers,
-			body: req.method !== "GET" && req.method !== "HEAD" ? body : undefined,
+			body:
+				req.method !== "GET" && req.method !== "HEAD" ? bodyText : undefined,
 		});
 
 		const webResponse = await handleFetch(webRequest);
